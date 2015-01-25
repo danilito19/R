@@ -5,4 +5,4 @@
 *.RData
 *.Rhistory
 *.DS_Store
-*Rda
+*.Rda
