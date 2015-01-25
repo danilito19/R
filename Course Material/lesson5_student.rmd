@@ -1,0 +1,375 @@
+Lesson 5
+========================================================
+
+### Third Qualitative Variable
+Notes: We saw that women had more friends on average than men, but is it because women had a different age distribution (more younger women in the df)? Conditional on age, do women still have more friends?
+
+
+
+```{r Third Qualitative Variable}
+library(ggplot2)
+ggplot(aes(x = gender, y = age), data = subset(facebook, !is.na(gender))) + geom_boxplot()
+```
+
+***
+
+### Plotting Conditional Summaries
+Notes: group by gender and plot median friend count by gender
+before we had simply used conditions summary and fun.y to get the median of friend_count, here that isn't needed bc we created a new df with the median. so we just plot that
+
+
+```{r Plotting Conditional Summaries}
+library(dplyr)
+age_gender <- group_by(facebook, age, gender)
+fc_by_age_gender<- summarize(age_gender,
+            mean_friend_count = mean(friend_count),
+            median_friend_count = median(friend_count),
+            n=n())
+
+fc_by_age_gender <- na.omit(fc_by_age_gender)
+
+ggplot(aes(x=age, y =median_friend_count), data = fc_by_age_gender) +
+  geom_line(aes(color = gender))
+```
+
+***
+
+### Thinking in Ratios
+Notes: How many times (x) more do women have friends than men?
+
+***
+
+### Wide and Long Format
+Notes:
+use reshape2() package and use dcast() to switch between the two formats for a dataframe
+***
+
+### Reshaping Data
+Notes:
+dcast(old df, vars I want to keep, ~ vars that will have their own column, value.var = "" key measurements for values)
+
+also can use melt() - is it for df also? 
+
+```{r}
+install.packages('reshape2')
+library(reshape2)
+fc_wide <- dcast(fc_by_age_gender, age ~ gender, value.var = "median_friend_count")
+
+#get a new df with each age and median friend count per gender
+```
+
+
+***
+
+### Ratio Plot
+Notes: Plot ratio of female to male to see how many more times do women have more friends than men and at what ages
+
+
+```{r Ratio Plot}
+ggplot(aes(x=age, y = (female/male)), data = fc_wide) +
+  geom_line() + geom_hline(yintercept=1)
+```
+This showed that friend count is conditional on age
+
+***
+
+### Third Quantitative Variable
+Notes:
+tenure, how long a user has been on fb, can also affect fried count. Let's explore all three vars - friend count, age, gender, and tenure using a scatterplot and bins
+
+```{r Third Quantitative Variable}
+#create year_joined variable
+facebook$year_joined <- floor(2014-facebook$tenure/365)
+
+table(facebook$year_joined)
+```
+
+***
+
+### Cut a Variable
+Notes: Use cut() to split year_joined into separate bins 
+
+```{r Cut a Variable}
+facebook$year_joined <- as.numeric(as.character(facebook$year_joined))
+facebook$year_joined.bucket <-cut(facebook$year_joined,  
+          c(2004, 2009, 2011, 2012, 2014))
+
+table(facebook$year_joined.bucket)
+```
+
+***
+
+### Plotting it All Together
+Notes:
+plot friend_count v. age so each year join bucket has a line that is the median friend count
+
+```{r Plotting it All Together}
+ggplot(aes(x = age, y = friend_count), 
+  data = subset(facebook, !is.na(year_joined.bucket))) + 
+  geom_line(aes(color = year_joined.bucket), stat = 'summary', fun.y = median)
+
+```
+
+Younger users with longer tenure tend to have more friends
+***
+
+### Plot the Grand Mean
+Notes:
+Change above plot to mean, and plot the overall mean of friend count by ages
+
+```{r Plot the Grand Mean}
+ggplot(aes(x = age, y = friend_count), 
+  data = subset(facebook, !is.na(year_joined.bucket))) + 
+  geom_line(aes(color = year_joined.bucket), stat = 'summary', fun.y = mean) +
+  geom_line(stat= "summary", fun.y= mean, linetype = 2, aes(color = 'Grand Mean'))
+
+```
+
+***
+
+### Friending Rate
+Notes: Friends someone has for each day they are using fb
+Create summary of friends per day of tenure, with at least one day of tenure
+
+```{r Friending Rate}
+with(subset(facebook, tenure >=1), summary(friend_count/tenure))
+```
+
+***
+
+### Friendships Initiated
+graph friendships initiated per day versus tenure
+
+```{r Friendships Initiated}
+ggplot(aes(x=tenure, y = friendships_initiated/tenure),
+       data = subset(facebook, tenure >= 1)) +
+       geom_line(aes(color = year_joined.bucket), stat = 'summary', fun.y = mean)
+
+###add a smoother to remove noise by changing geom_line to geom_smooth and remove summary and mean
+ggplot(aes(x=tenure, y = friendships_initiated/tenure),
+       data = subset(facebook, tenure >= 1)) +
+       geom_smooth(aes(color = year_joined.bucket))
+
+```
+
+users with more tenure initiate less friendships
+
+***
+
+### Bias-Variance Tradeoff Revisited
+Notes:
+
+Following code changes bin of x to reduce noise
+variance:  having a lot of noise
+bias:  reducing variance creates a bias in the data
+```{r Bias-Variance Tradeoff Revisited}
+
+ggplot(aes(x = tenure, y = friendships_initiated / tenure),
+       data = subset(pf, tenure >= 1)) +
+  geom_line(aes(color = year_joined.bucket),
+            stat = 'summary',
+            fun.y = mean)
+
+ggplot(aes(x = 7 * round(tenure / 7), y = friendships_initiated / tenure),
+       data = subset(pf, tenure > 0)) +
+  geom_line(aes(color = year_joined.bucket),
+            stat = "summary",
+            fun.y = mean)
+
+ggplot(aes(x = 30 * round(tenure / 30), y = friendships_initiated / tenure),
+       data = subset(pf, tenure > 0)) +
+  geom_line(aes(color = year_joined.bucket),
+            stat = "summary",
+            fun.y = mean)
+
+ggplot(aes(x = 90 * round(tenure / 90), y = friendships_initiated / tenure),
+       data = subset(pf, tenure > 0)) +
+  geom_line(aes(color = year_joined.bucket),
+            stat = "summary",
+            fun.y = mean)
+
+```
+
+***
+
+
+### Introducing the Yogurt Data Set
+Notes:
+purchases of yogurt
+***
+
+### Histograms Revisited
+Notes:
+
+```{r Histograms Revisited}
+yogurt <-read.csv("/Users/danilitovsky/Dropbox/dataScience/R/yogurt.csv")
+
+#convert id variable to a factor
+yogurt$id <- factor(yogurt$i
+str(yogurt)
+
+ggplot(aes(x=price), data = yogurt) + geom_histogram()
+
+table(yogurt$price)
+```
+
+***
+
+### Number of Purchases
+Notes: Create a new variable combining all the yogurt flavors purchased each time 
+
+```{r Number of Purchases}
+yogurt$all_purchases <-yogurt$strawberry + yogurt$blueberry + yogurt$pina.colada + yogurt$plain + yogurt$mixed.berry
+
+ggplot(aes(x=all_purchases), data = yogurt) + geom_histogram()
+
+#most buy 1-2 yogurts at a time
+
+```
+
+***
+
+### Prices over Time
+Notes: create scatter of price vs. time, asses for overplotting
+
+```{r Prices over Time}
+ggplot(aes(x=time, y = price), data= yogurt) +
+  geom_jitter(alpha = 1/4, shape =21)
+
+#most common prices went up over time, points scattered below may be due to using coupons
+```
+
+***
+
+### Sampling Observations
+Notes: Let's look at a subsample of households
+
+***
+
+### Looking at Samples of Households
+set.seed() is like nrom() in that it produces random numbers but you can save the numbers you get
+
+```{r Looking at Sample of Households}
+#set the seed for reproducible results. 
+set.seed(4230)
+sample.ids <- sample(levels(yogurt$id), 16)
+#gets me 16 sample households (each house has an id) with the same seed number, use levels bc I want different households
+
+sample.ids #prints sample ids out
+
+#plot each purchase occasion for each of the 16 sample households
+
+ggplot(aes(x=time, y= price), data = subset(yogurt, id %in% sample.ids)) +
+  facet_wrap(~id) +
+  geom_line() +
+  geom_point(aes(size = all_purchases), pch= 1)
+  
+# x %in% y returns a logical boolean vector stating if x appears in y, so we only get the households from the dataset with the sample.ids, it creates a loop over ids
+
+#size = all_purchases will alter size depending on how many yogurts a household purchased
+
+###replicate w different seed
+set.seed(333)
+sample.ids <- sample(levels(yogurt$id), 16)
+
+sample.ids 
+
+ggplot(aes(x=time, y= price), data = subset(yogurt, id %in% sample.ids)) +
+  facet_wrap(~id) +
+  geom_line() +
+  geom_point(aes(size = all_purchases), pch= 1)
+
+```
+
+Graph:  shows how over time, which households consistently buy yogurt or not, and for most households, the price goes up over time, and how much they buy at once (size)
+***
+
+
+### Many Variables
+Notes: Use multiple plots in scatterplot matrix
+
+***
+
+### Scatterplot Matrix
+Notes: with GGally package
+
+```{r}
+install.packages("GGally")
+library(GGally)
+theme_set(theme_minimal(20))
+
+##set the seed for reproducible results
+set_seed(1836)
+facebook_subset <- facebook[, c(2:15)] #subset only certain variables (not categorical vars)
+
+ggpairs(facebook_subset[sample.int(nrow(facebook_subset), 1000),])
+####  WARNING :   ABOVE CODE TAKES 1 HR TO LOAD !!!
+
+```
+
+
+***
+
+### Even More Variables
+Notes:
+
+***
+
+### Heat Maps
+Notes: genomic data to create a heat map
+use red to show when a gene is overexpressed and blue when it is underexpressed
+
+
+```{r}
+nci <- read.table("nci.tsv")
+colnames(nci) <- c(1:64)
+```
+
+```{r}
+##change data to long format
+##only looking at first 200 of over 6000 genes
+nci.long.samp <- melt(as.matrix(nci[1:200,]))
+names(nci.long.samp) <- c("gene", "case", "value")
+head(nci.long.samp)
+
+ggplot(aes(y = gene, x = case, fill = value),
+  data = nci.long.samp) +
+  geom_tile() +
+  scale_fill_gradientn(colours = colorRampPalette(c("blue", "red"))(100))
+```
+***
+***
+
+####more practice
+Create new var of proportion of friendships that a user initiated
+# Create a line graph of the proportion of
+# friendships initiated ('prop_initiated') vs.
+# tenure and color the line segment by
+# year_joined.bucket. Use mean to remove overplotting
+```{r}
+library(gridExtra)
+facebook2$prop_initiated <- facebook2$friendships_initiated / facebook2$friend_count
+
+p1 <- ggplot(aes(x=tenure, y = prop_initiated), data= facebook2) +
+  geom_line(aes(color=year_joined.bucket), stat = "summary", fun.y = mean)
+
+###with smoother and big bin size
+p2 <-ggplot(aes(x=tenure, y = prop_initiated, binwidth = 2000), data= facebook2) +
+  geom_smooth(aes(color=year_joined.bucket), stat = "summary", fun.y = mean)
+
+grid.arrange(p1, p2)
+
+##not much change with smoothers
+
+###what's the avg proportion of friendships initiated by the 2012-2014 group?
+
+by(facebook2$prop_initiated, facebook2$year_joined.bucket, summary)
+```
+
+Conclusion:  more recent users have a higher proportion of friend initiation (maybe bc there are more people using fb when they join), but users from the beginning of facebook have a huge proportion variance, some initiate and some don't.
+
+
+
+Click **KnitHTML** to see all of your hard work and to have an html
+page of this lesson, your answers, and your notes!
+

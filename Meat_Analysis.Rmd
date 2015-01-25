@@ -1,0 +1,113 @@
+---
+title: "Meat Analysis"
+output: html_document
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+Use meat consumption, imports in 2012, exports in 2012, and cholesterol by country to analyze meat.
+  1. Does meat consumption affect cholesterol?
+  2. Do more imports / exports affect consumption?
+
+Open data
+```{r}
+Consumption <-read.csv('/Users/danilitovsky/Dropbox/dataScience/Datasets/Meat/Beef&Veal_consumption_kg_per_cap.csv')
+Cholesterol <-read.csv("/Users/danilitovsky/Dropbox/dataScience/Datasets/Meat/Mean_cholesterol.csv")
+Imports <-read.csv("/Users/danilitovsky/Dropbox/dataScience/Datasets/Meat/Bovine_meat_import_2012.csv")
+Exports <- read.csv("/Users/danilitovsky/Dropbox/dataScience/Datasets/Meat/Bovine_meat_export_2012.csv")
+```
+
+import libraries
+```{r}
+library(reshape)
+library(ggplot2)
+```
+
+Let's clean up each dataframe:
+
+Cholesterol
+```{r}
+#drop columns
+Cholesterol <- subset(Cholesterol, select = -Display.Value)
+Cholesterol <- subset(Cholesterol, select = -Age.Group)
+Cholesterol <- subset(Cholesterol, select = -WHO.region)
+Cholesterol <- subset(Cholesterol, select = -Low)
+Cholesterol <- subset(Cholesterol, select = -High)
+
+#rename Numeric
+names(Cholesterol)[6] <- "cholesterol"
+
+#Most data is for male, so let's subset without females
+Cholesterol_gender<-Cholesterol[Cholesterol$Sex == "Male",]
+#now remove Sex column and name the df Cholesterol again, remember all data is for males now
+Cholesterol <- subset(Cholesterol_gender, select = -Sex)
+
+#melt df
+Cholesterol_melt <- melt(Cholesterol, measure.vars = "cholesterol")
+
+##drop variable column and rename value to cholesterol
+Cholesterol_melt <- subset(Cholesterol_melt, select = -variable)
+names(Cholesterol)[3] <- "cholesterol"
+
+#remove rows with NA
+Cholesterol_final <-na.omit(Cholesterol_melt)
+
+```
+
+Consumption
+```{r}
+#melt df
+Consumption_melt <-melt(Consumption)
+
+#Need to remove X from years ("variable" column) using substring()
+Consumption_melt$variable <- as.character(Consumption_melt$variable)
+Consumption_melt$variable <- substring(Consumption_melt$variable, 2, nchar(Consumption_melt$variable))
+
+#rename columns
+names(Consumption_melt)[2] <-"Year"
+names(Consumption_melt)[3] <-"consumption"
+
+#remove rows with NA
+Consumption_final <-na.omit(Consumption_melt)
+
+```
+
+Exports
+```{r}
+#remove columns
+Exports <- subset(Exports, select = -X.)
+Exports <- subset(Exports, select = -ORIGIN)
+Exports <- subset(Exports, select = -Percent)
+
+#rename columns
+names(Exports)[1] <-"Country"
+names(Exports)[2] <-"Exports 2012"
+
+```
+
+Imports
+```{r}
+#remove columns
+Imports <- subset(Imports, select = -X.)
+Imports <- subset(Imports, select = -ORIGIN)
+Imports <- subset(Imports, select = -Percent)
+
+#rename columns
+names(Imports)[1] <-"Country"
+names(Imports)[2] <-"Imports 2012"
+```
+```
+WHEN WORKING WITH EXPORTS / IMPORTS, HAVE TO SUBSET ALL OTHER DATA
+FOR 2012 year
+
+
+
+Merge Cholesterol and Consumption
+```{r}
+CC <-merge(Cholesterol_final, Consumption_final, by= c("Country", "Year"))
+```
+Result:  very few observations ....
+

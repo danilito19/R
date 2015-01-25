@@ -1,0 +1,70 @@
+---
+title: "2012 Campaign Contributions from TX"
+output: html_document
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+Look into the campaign contributions to the 2012 presidential elections from TX contributors
+
+```{r}
+cont <- read.csv("/Users/danilitovsky/Dropbox/dataScience/Datasets/Campaign_Cont2012-TX.csv")
+```
+
+Get summary statistics
+```{r}
+table(cont$cand_nm) #gives number of contributions to each
+
+#give stats of contributions to each candidate
+by(cont$contb_receipt_amt, cont$cand_nm, summary)
+
+#There seem to be a min contribution of negative numbers, so subset these out
+
+cont2 <- subset(cont, contb_receipt_amt > 0)
+
+#run statistics again
+by(cont2$contb_receipt_amt, cont2$cand_nm, summary)
+
+#get sense of data
+str(cont2)
+summary(cont2)
+```
+
+Start plotting single variables
+```{r}
+library(ggplot2)
+library(gridExtra)
+p1<- ggplot(aes(x= contb_receipt_amt), data = cont2) +
+  geom_histogram(binwidth = 100) +
+  scale_x_continuous(limits = c(0,500), breaks= seq(0,500,100)) 
+
+
+#most contributions are below $150, create a ln version to normalize
+cont2$logcontb = log(cont2$contb_receipt_amt)
+p2 <- qplot(logcontb, data = cont2)
+
+ggplot(aes(x= contb_receipt_amt), data = cont2) +
+  geom_histogram() + scale_x_log10()
+
+#first one logs data and axis, second lots data but leaves axis as raw
+
+#look at cand_nm, contbr_city, contb_employer, contbr_occupation, logcontb, 
+
+#boxplot representing quartiles of contribution
+ggplot(aes(x=cand_nm, y= contb_receipt_amt), data = cont2) + geom_boxplot() +ylim(0, 10000)
+
+#city, employer and occupation
+
+by(cont2$contb_receipt_amt, cont2$contbr_city, max)
+
+```
+
+
+corr.test
+lm()
+```{r}
+```
+

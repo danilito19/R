@@ -1,0 +1,362 @@
+Lesson 4
+========================================================
+
+### Scatterplots
+Notes:
+Scatterplots used to analyze relationship between two continuous variables
+use qplot and pass x and y variables
+
+```{r Scatterplots}
+setwd('/Users/danilitovsky/Dropbox/dataScience/R')
+library(ggplot2)
+
+facebook = read.csv('pseudo_facebook.tsv', sep = '\t')
+
+qplot(x=age, y=friend_count, data= facebook)
+```
+
+***
+
+#### What are some things that you notice right away?
+Response:
+
+lots of young people have lots of friends, vertical lines
+
+### ggplot Syntax
+Notes:
+Start using ggplot instead to specify complicated plots
+geom_point() for scatterplots
+alpha = 1/20 means that one full point point will represent 20 points, easier to clean data
+also used coord_trans to change y ais
+
+
+```{r ggplot Syntax}
+summary(facebook$age)
+
+ggplot(aes(x=age, y = friend_count), data=facebook) + geom_point(alpha = 1/20) + xlim(13,90)
+
+#geom_jitter to replace geom_point to "fill-in" gaps between ages by adding noise. Because it doesn't make visual sense that the ages are all line up virtically. But go back to point when adding coord_trans
+
+ggplot(aes(x=age, y = friend_count), data=facebook) + 
+  geom_point(alpha = 1/20) +
+  xlim(13,90) + 
+  coord_trans(y = "sqrt")
+
+```
+
+#### What do you notice?
+
+***
+
+### Alpha and Jitter
+Notes:
+geom_jitter ... jitters data, but didn't use it here because it gave an error
+why: because jitter makes zero values less than zero, and the squre root of that can be imaginary, so error. To account for this, add position height at least zero
+```{r Alpha and Jitter}
+
+ggplot(aes(x=age, y = friend_count), data=facebook) + 
+  geom_point(alpha = 1/20, position= position_jitter(h = 0), color = "orange") +
+  xlim(13,90) + 
+  coord_trans(y = "sqrt")
+
+```
+
+
+###explore relationship between friendships_initiated and age using the above techniques. Build layer by layer
+
+```{r}
+ggplot(aes(x=age, y = friendships_initiated), data=facebook) + geom_point()
+
+ggplot(aes(x=age, y = friendships_initiated), data=facebook) + geom_point() + xlim(13,90)
+
+ggplot(aes(x=age, y = friendships_initiated), data=facebook) + geom_point(color='blue', alpha= 1/20) + xlim(13,90) 
+  
+#investigate male v. female friendship initiations, add aes to geom)()
+
+ggplot(aes(x=age, y = friendships_initiated), data=facebook) + geom_jitter(aes(color= gender, alpha= 1/20)) + xlim(13,90)  
+```
+
+***
+
+### Conditional Means
+Notes:
+instead of looking at raw values, let's look at the average friends initiated by age
+
+```{r Conditional Means}
+#group my data by age
+library("dplyr")
+age_groups <- group_by(facebook, age)
+#summarize the new df and create new variales of means
+facebook.fc_by_age <- summarize(age_groups,
+          n= n(), #function for summarize that reports number of rows per age group
+          friend_count_mean = mean(friend_count),
+          friend_count_median = median(friend_count))
+
+# fc_by_age is now a new df telling us the number of people in each age group, and each age group's mean and median friend count
+```
+
+#may need to resave new df and order it by age df <- arrange(df, age)
+
+Create your plot using facebook.fc_by_age df mean friend count v. age
+and use previous tactics of ggplot
+
+```{r Conditional Means Plot}
+
+ggplot(aes(x=age, y = friend_count_mean), data = facebook.fc_by_age) +
+  geom_line(aes(color = "red")) +
+  xlim(13,90) +
+  coord_trans(y= "log10")
+
+```
+
+***
+
+### Overlaying Summaries with Raw Data
+Notes: Use original raw data and overlay above average friend count by using geom_line (stat, fun.y = mean) which will give the mean friend count by age(same we got above)
+
+```{r Overlaying Summaries with Raw Data}
+ggplot(aes(x=age, y = friend_count), data=facebook) + 
+  geom_point(alpha = 1/20, position= position_jitter(h = 0), color = "orange") +
+  xlim(13,90) + 
+  coord_trans(y = "sqrt") +
+  geom_line(stat = "summary", fun.y = mean)
+
+#use the same plot but now let's add 10, 50, and 90 % quantiles
+
+ggplot(aes(x=age, y = friend_count), data=facebook) + 
+  #xlim(13,90) +
+  geom_point(alpha = 1/20, position= position_jitter(h = 0), color = "orange") +
+  coord_cartesian(xlim = c(13, 70), ylim= c(0, 1000)) + #better than xlim bc data isn't taken out, but take out coord_trans to work
+  #coord_trans(y = "sqrt") +
+  geom_line(stat = "summary", fun.y = mean, color= "black") +
+  geom_line(stat = "summary", fun.y= quantile, probs = .1, color = "blue") +
+  geom_line(stat = "summary", fun.y= quantile, probs = .5, color = "green") +
+  geom_line(stat = "summary", fun.y= quantile, probs = .9, color = "red") 
+ 
+  
+  
+  
+  scale_color_manual("", 
+                      breaks = c("Mean", "10% quartile", "median", "90% quartile"),
+                      values = c("black", "blue", "green", "red"))
+
+#figure out how to make scale_color_manual work
+```
+
+#### What are some of your observations of the plot?
+Response: Data is very dispersed around the mean
+
+
+### Correlation
+Notes: we'll measure the linear relationship between age and friend count using pearson's r
+use ?cor.test
+
+```{r Correlation}
+cor.test(facebook$age, facebook$friend_count, method = "pearson")
+
+#another way is by using with() and gets us the same result
+
+with(facebook, cor.test(age, friend_count, method = "pearson"))
+```
+
+Look up the documentation for the cor.test function.
+
+What's the correlation between age and friend count? Round to three decimal places.
+Response: -0.027 .. .very small, so little correlation 
+
+***
+
+### Correlation on Subsets
+Notes: want to take out users older than 70 because many people put a fake old age
+
+
+```{r Correlation on Subsets}
+with(facebook[facebook$age <= 70,],cor.test(age, friend_count, method = "pearson"))
+```
+
+Result:  -0.171 correlation. So taking older people out, there is a negative correlation - as age increases, friend count decreases
+
+***
+
+## Create Scatterplots
+Notes:
+www_likes_received v. likes_received
+
+```{r}
+ggplot(aes(x= www_likes_received, y = likes_received), data = facebook) + geom_point(alpha = 1/20) +
+  xlim(0, quantile(facebook$www_likes_received, 0.95)) +
+  ylim(0, quantile(facebook$likes_received, 0.95)) +
+  geom_smooth(method = "lm", color = "red")
+
+#I used 95th quantile to limit the axes so I get rid of outliers. Most data is located 300 www likes and 5000 likes
+
+#added line of best fit in red 
+```
+
+
+What's the correlation betwen the two variables? Include the top 5% of values for the variable in the calculation and round to 3 decimal places.
+
+```{r Correlation Calcuation}
+cor.test(facebook$www_likes_received, facebook$likes_received, method = "pearson")
+```
+
+Response: 0.94, very strong correlation (obviously, bc some likes_received come from www likes, one is a subset of the other)
+
+REMEMBER: regression assumes that the variables will be independent of each other - so high correlation between two variables messes up regression analysis
+
+***
+
+
+### More Caution with Correlation
+Notes:
+
+```{r More Caution With Correlation}
+install.packages('alr3')
+library(alr3)
+
+#load new data
+data(Mitchell)
+?Mitchell
+```
+
+Create plot of temperature versus Months
+
+```{r Temp vs Month}
+View(Mitchell)
+
+ggplot(aes(x=Month, y = Temp), data = Mitchell) + geom_point() +
+  geom_smooth(method = "lm", color = "red")
+
+```
+
+Very scattered data, line of best fit line is useless
+***
+
+### Noisy Scatterplots
+a. Take a guess for the correlation coefficient for the scatterplot. Very low corr
+
+b. What is the actual correlation of the two variables?
+(Round to the thousandths place)
+
+```{r Noisy Scatterplots}
+
+cor.test(Mitchell$Month, Mitchell$Temp, method = "pearson")
+
+#Result:  0.057 .. very low cor
+```
+
+***
+
+### Making Sense of Data
+Notes: Our data isn't divided into actual months, just 200 continuous months, let's add actual months that repeat, bc temp would repeat
+break up Month by 12
+
+
+
+```{r Making Sense of Data}
+
+ggplot(aes(x=Month, y = Temp), data = Mitchell) + geom_point() +
+  scale_x_discrete(breaks = seq(0, 203, 12))
+```
+
+***
+
+### A New Perspective
+
+What do you notice when you stretch the graph as long as possible?
+Response: There is a cyclical patterns which correlation doesn't account for. Up-down bc of the seasons of the months
+
+```{r}
+ggplot(aes(x=(Month%%12),y=Temp),data=Mitchell)+ 
+  geom_point() 
+
+## %% superinposes each year's data into each other, so we can see the pattern better
+```
+
+
+
+***
+
+### Understanding Noise: Age to Age Months
+Notes: we observed that the mean friend count by age had a lot of noise.
+Some noise and spikes make sense, but others are just noise on the generally smooth line bc we simply got a certain sample that is that way but isn't so for the whole population
+
+Convert age to age with months to see all noise
+```{r Understanding Noise: Age to Age Months}
+ggplot(aes(x=age, y = friend_count_mean), data = facebook.fc_by_age) +
+  geom_line()
+
+```
+
+***
+
+### Age with Months Means
+
+```{r Age with Months Means}
+facebook$age_with_months <- facebook$age + (1- facebook$dob_month /12)
+#changes age to age as decimal and more continuous
+```
+
+Programming Assignment
+```{r Programming Assignment}
+library("dplyr")
+age_with_months <- group_by(facebook, age_with_months)
+
+facebook.fc_by_age_month <- summarize(age_with_months,
+          friend_count_mean = mean(friend_count),
+          friend_count_median = median(friend_count),
+          n=n())
+
+#created new df
+```
+
+***
+
+### Noise in Conditional Means
+plot friend_count_mean versus age_with months
+```{r Noise in Conditional Means}
+
+ggplot(aes(x=age_with_months, y = friend_count_mean), data = subset(facebook.fc_by_age_month, age_with_months <71)) +
+  geom_line() 
+
+#compare to previous one we created with ages not in months, this one has much more noise
+
+```
+
+***
+
+### Smoothing Conditional Means
+Notes:
+COMPARE
+```{r Smoothing Conditional Means}
+
+p1 <- ggplot(aes(x=age, y = friend_count_mean), data = subset(facebook.fc_by_age, age <71)) +
+  geom_line(aes(color = "red")) +
+  geom_smooth()
+
+p2<-ggplot(aes(x=age_with_months, y = friend_count_mean), data = subset(facebook.fc_by_age_month, age_with_months <71)) +
+  geom_line() +
+  geom_smooth()
+
+#COMPARE and add a smooth()
+library(gridExtra)
+grid.arrange(p1,p2, ncol =1)
+```
+
+***
+
+### Which Plot to Choose?
+Notes:
+
+Use many - there are tradeoffs in each one, and each plot gives you different insights
+
+***
+
+### Analyzing Two Variables
+Reflection:
+
+***
+
+Click **KnitHTML** to see all of your hard work and to have an html
+page of this lesson, your answers, and your notes!
+

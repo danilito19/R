@@ -1,0 +1,123 @@
+---
+title: "Facebook"
+output: html_document
+---
+```{r}
+setwd('/Users/danilitovsky/Dropbox/dataScience/R')
+facebook <- read.csv('pseudo_facebook.tsv', sep = '\t')
+
+names(facebook)
+```
+
+let's look at birthdays using ggplot2
+Face_wrap lets me split the diagram by the month into each month
+
+```{r}
+library(ggplot2)
+qplot(x=dob_day, data = facebook) +
+  scale_x_discrete(breaks=1:31) +
+  facet_wrap(~dob_month, ncol = 3)
+```
+
+break friend count into gender to look into which gender has more friends
+
+```{r}
+qplot(data = subset(facebook,!is.na(gender)), x=friend_count, binwidth = 25) +
+  scale_x_continuous(limits = c(0,1000), breaks= seq(0,1000,50)) + 
+  facet_wrap(~gender)
+                     
+```
+
+let's see if there are more male v. female so we can start determening who has more friends on average
+
+```{r}
+table(facebook$gender)
+by(facebook$friend_count, facebook$gender, summary)
+```
+
+Create histogram of tenure by year, not days
+```{r}
+library(ggplot2)
+qplot(x=tenure/365, data = facebook, binwidth = .25, xlab= "Number of years using FB", ylab= "Number of users", color = I('black'), fill = I('#F79420')) + scale_x_continuous(breaks = seq(1,7,1), lim=c(0,7))
+```
+
+create a histogram of ages of FB users
+```{r}
+
+qplot(x= age, data = facebook, binwidth = 1, xlab = "Age of User", ylab= ("Number of Uswers"), color =  I('blue'), fill = I('#F79420')) + scale_x_continuous(breaks = seq(10, 90, 5), lim=c(10,90))
+```
+
+take log of friend_count to get it to more normal distribution
+create three histograms in one
+use ggplot instead of qplot to use scale_x_log10
+
+```{r}
+install.packages('gridExtra') 
+library(gridExtra) 
+
+summary(facebook$friend_count)
+summary(log10(facebook$friend_count+ 1)) #add one to avoid 0 friends being -Inf
+summary(sqrt(facebook$friend_count))
+
+p1<- qplot(x=friend_count, data=facebook)
+p2<- qplot(x=log10(friend_count +1), data=facebook)
+p3<- qplot(x=sqrt(friend_count), data=facebook)
+
+q4 <- ggplot(aes(x=friend_count), data = facebook) + geom_histogram() + scale_x_log10()
+grid.arrange(p1, p2, p3, ncol=2)
+```
+
+Use frequency polygon with ggplot to show friend count and the percent of users with that friend count by gender
+The funky code after y = is used to make us see proportions on the y axis, not raw counts, so we can answer the question who has more friends on average, men or women?
+
+```{r}
+
+ggplot(aes(x = friend_count, y = ..count../sum(..count..)), 
+  data = subset(facebook, !is.na(gender))) +
+  geom_freqpoly(aes(color = gender)) + 
+  scale_x_continuous(limits = c(0, 1000), breaks = seq(0, 1000, 50)) +
+  xlab('Friend Count') + 
+  ylab('Percentage of users with that friend count')
+```
+
+Let's see which gender makes more likes by using the above new tools
+
+```{r}
+ggplot(aes(x = www_likes), data = subset(facebook, !is.na(gender))) + geom_freqpoly(aes(color=gender))  + scale_x_log10(limits=c(1,1000), breaks = seq(1,1000, 50)) + xlab('WWW Likes')
+```
+On the above code, have to make the min limit 1 to be able to log it, can't log 0.
+Now, the data is logged but my www_likes in the x-axis can be read as raw. So many belove 51 likes.
+
+But the graph doesn't really tell us who uses WWW Likes more, let's run some numerical code
+By(...,sum) will add up all the www_likes by gender
+
+```{r}
+by(facebook$www_likes, facebook$gender, sum)
+
+```
+
+Let's create a boxplot of friend count by gender. Box plots usually have the categorical var as the x and the continuous var as the y.
+```{r}
+ggplot(aes(x = gender, y = friend_count), data = subset(facebook, !is.na(gender))) + geom_boxplot()
+```
+The resulting graph has boxes which represent the bulk of the data. The line inside the box is the median. the dots above the box are outliers (about 1.5x of the interquartile range), which we can take out with lim
+
+So let's add limits to the y axis. use coord cartesian to make it more accurate
+
+```{r}
+ggplot(aes(x = gender, y = friend_count), data = subset(facebook, !is.na(gender))) + geom_boxplot(outlier.colour = "red" ) + coord_cartesian(ylim = c(0,1000))
+```
+The black line inside the box shows that women have slightly more friends than men. Zoom in to counts below 250 to see it closer. use by(facebook$friend_count, facebook$gender, summary) to see actual median number
+
+
+Create new variable to see if people used mobile checkins by transforming the number of mobile check in into true/ false if they used it at all.
+```{r}
+facebook$mobile_checkin <-NA
+facebook$mobile_checkin <-ifelse(facebook$mobile_likes > 0, 1, 0)
+#if their mobile_likes were greater than 0, give value of 1, otherwise give value of 0
+facebook$mobile_checkin <- factor(facebook$mobile_checkin) #convert variable to factor variable
+
+summary(facebook$mobile_checkin)
+```
+
+
